@@ -54,44 +54,102 @@ INTERVIEW_QUESTIONS = {
     ]
 }
 
-# Mock LLM responses for evaluation
+# Enhanced evaluation system with detailed feedback
 def evaluate_answer(question, answer, role):
-    """Mock LLM evaluation that provides intelligent responses"""
+    """Enhanced evaluation that provides specific feedback and identifies issues"""
     if not answer.strip():
         return {
-            "score": 2,
-            "feedback": "Your answer was too brief. Try to provide more detailed responses that demonstrate your experience and knowledge."
+            "score": 1,
+            "feedback": "No answer provided. Please provide a complete response to the question.",
+            "is_satisfactory": False,
+            "specific_issues": ["No response given"],
+            "improvement_suggestions": ["Please answer the question with specific examples and details"]
         }
     
-    # Simple keyword-based evaluation for different roles
-    role_keywords = {
-        "software_engineer": ["code", "programming", "development", "algorithm", "bug", "debug", "git", "version", "software", "technical"],
-        "data_scientist": ["data", "analysis", "machine learning", "statistics", "python", "model", "dataset", "visualization", "analytics"],
-        "product_manager": ["product", "roadmap", "feature", "user", "customer", "metrics", "stakeholder", "requirement"],
-        "marketing_manager": ["marketing", "campaign", "brand", "customer", "digital", "social media", "analytics", "roi"],
-        "sales_representative": ["sales", "customer", "client", "relationship", "revenue", "target", "crm", "negotiation"]
+    # Role-specific evaluation criteria
+    role_criteria = {
+        "software_engineer": {
+            "keywords": ["code", "programming", "development", "algorithm", "bug", "debug", "git", "version", "software", "technical", "framework", "database", "api"],
+            "required_concepts": ["technical experience", "problem-solving", "tools/technologies"],
+            "min_words": 20
+        },
+        "data_scientist": {
+            "keywords": ["data", "analysis", "machine learning", "statistics", "python", "model", "dataset", "visualization", "analytics", "regression", "classification"],
+            "required_concepts": ["data analysis", "statistical methods", "tools/languages"],
+            "min_words": 20
+        },
+        "product_manager": {
+            "keywords": ["product", "roadmap", "feature", "user", "customer", "metrics", "stakeholder", "requirement", "priority", "market"],
+            "required_concepts": ["product strategy", "user focus", "decision-making"],
+            "min_words": 20
+        },
+        "marketing_manager": {
+            "keywords": ["marketing", "campaign", "brand", "customer", "digital", "social media", "analytics", "roi", "target", "strategy"],
+            "required_concepts": ["marketing strategy", "campaign experience", "measurement"],
+            "min_words": 20
+        },
+        "sales_representative": {
+            "keywords": ["sales", "customer", "client", "relationship", "revenue", "target", "crm", "negotiation", "closing", "pipeline"],
+            "required_concepts": ["sales experience", "customer relationships", "results/achievements"],
+            "min_words": 20
+        }
     }
     
-    keywords = role_keywords.get(role, [])
+    criteria = role_criteria.get(role, role_criteria["software_engineer"])
     answer_lower = answer.lower()
-    keyword_matches = sum(1 for keyword in keywords if keyword in answer_lower)
-    
-    # Score based on answer length and keyword relevance
     word_count = len(answer.split())
-    base_score = min(10, max(3, (word_count / 10) + (keyword_matches * 2)))
     
-    if base_score >= 8:
-        feedback = "Excellent answer! You demonstrated strong knowledge and experience relevant to the role."
-    elif base_score >= 6:
-        feedback = "Good answer. You showed relevant experience, but could provide more specific examples."
-    elif base_score >= 4:
-        feedback = "Adequate answer. Consider providing more detailed examples and demonstrating deeper knowledge."
+    # Check for keyword relevance
+    keyword_matches = sum(1 for keyword in criteria["keywords"] if keyword in answer_lower)
+    keyword_score = min(4, keyword_matches)
+    
+    # Check answer length
+    length_score = min(3, word_count / 10)
+    
+    # Check for specific examples
+    example_indicators = ["example", "project", "experience", "worked on", "implemented", "developed", "managed", "led"]
+    has_examples = any(indicator in answer_lower for indicator in example_indicators)
+    example_score = 2 if has_examples else 0
+    
+    # Calculate total score
+    total_score = keyword_score + length_score + example_score + 1  # Base score of 1
+    final_score = min(10, max(1, total_score))
+    
+    # Determine if answer is satisfactory
+    is_satisfactory = final_score >= 5 and word_count >= criteria["min_words"]
+    
+    # Generate specific feedback
+    issues = []
+    suggestions = []
+    
+    if word_count < criteria["min_words"]:
+        issues.append("Answer is too brief")
+        suggestions.append("Provide more detailed explanations and examples")
+    
+    if keyword_matches < 2:
+        issues.append(f"Missing relevant {role.replace('_', ' ')} terminology")
+        suggestions.append(f"Include specific {role.replace('_', ' ')} concepts and technologies")
+    
+    if not has_examples:
+        issues.append("No specific examples provided")
+        suggestions.append("Share concrete examples from your experience")
+    
+    # Generate contextual feedback
+    if final_score >= 8:
+        feedback = "Excellent answer! You provided relevant details and demonstrated strong experience."
+    elif final_score >= 6:
+        feedback = "Good answer with relevant information. " + " ".join(suggestions[:1]) if suggestions else "Consider adding more specific examples."
+    elif final_score >= 4:
+        feedback = "Your answer addresses the question but needs improvement. " + " ".join(suggestions[:2])
     else:
-        feedback = "Your answer could be improved. Try to be more specific and provide concrete examples from your experience."
+        feedback = "This answer needs significant improvement. " + " ".join(suggestions)
     
     return {
-        "score": round(base_score, 1),
-        "feedback": feedback
+        "score": round(final_score, 1),
+        "feedback": feedback,
+        "is_satisfactory": is_satisfactory,
+        "specific_issues": issues,
+        "improvement_suggestions": suggestions
     }
 
 @app.route('/')
@@ -152,45 +210,61 @@ def submit_answer():
         # Evaluate the answer
         evaluation = evaluate_answer(current_question, answer, session["role"])
         
-        # Store answer and score
-        session["answers"].append({
-            "question": current_question,
-            "answer": answer,
-            "score": evaluation["score"],
-            "feedback": evaluation["feedback"]
-        })
-        session["scores"].append(evaluation["score"])
-        
-        # Move to next question
-        session["current_question"] += 1
-        
         response = {
-            "question_completed": True,
+            "question_completed": False,
             "feedback": evaluation["feedback"],
-            "score": evaluation["score"]
+            "score": evaluation["score"],
+            "is_satisfactory": evaluation["is_satisfactory"],
+            "specific_issues": evaluation["specific_issues"],
+            "improvement_suggestions": evaluation["improvement_suggestions"]
         }
         
-        # Check if interview is complete
-        if session["current_question"] >= len(session["questions"]):
-            session["completed"] = True
-            session["completed_at"] = datetime.now().isoformat()
-            
-            # Calculate final score
-            avg_score = sum(session["scores"]) / len(session["scores"])
-            
-            response.update({
-                "interview_complete": True,
-                "final_score": round(avg_score, 1),
-                "total_questions": len(session["questions"])
+        # If answer is satisfactory, proceed to next question
+        if evaluation["is_satisfactory"]:
+            # Store answer and score
+            session["answers"].append({
+                "question": current_question,
+                "answer": answer,
+                "score": evaluation["score"],
+                "feedback": evaluation["feedback"]
             })
+            session["scores"].append(evaluation["score"])
+            
+            # Move to next question
+            session["current_question"] += 1
+            response["question_completed"] = True
+            
+            # Check if interview is complete
+            if session["current_question"] >= len(session["questions"]):
+                session["completed"] = True
+                session["completed_at"] = datetime.now().isoformat()
+                
+                # Calculate final score
+                avg_score = sum(session["scores"]) / len(session["scores"])
+                
+                response.update({
+                    "interview_complete": True,
+                    "final_score": round(avg_score, 1),
+                    "total_questions": len(session["questions"])
+                })
+            else:
+                # Get next question
+                next_question = session["questions"][session["current_question"]]
+                response.update({
+                    "interview_complete": False,
+                    "next_question": next_question,
+                    "question_number": session["current_question"] + 1,
+                    "total_questions": len(session["questions"])
+                })
         else:
-            # Get next question
-            next_question = session["questions"][session["current_question"]]
+            # Answer is not satisfactory, ask same question again
             response.update({
                 "interview_complete": False,
-                "next_question": next_question,
+                "repeat_question": True,
+                "current_question": current_question,
                 "question_number": session["current_question"] + 1,
-                "total_questions": len(session["questions"])
+                "total_questions": len(session["questions"]),
+                "retry_message": "Let me ask the same question again. Please provide a more detailed answer."
             })
         
         return jsonify(response)

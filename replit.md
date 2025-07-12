@@ -8,6 +8,14 @@ This is a Flask-based web application that provides an AI-powered voice intervie
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (July 12, 2025)
+
+✓ Enhanced evaluation system with detailed feedback
+✓ Added question retry mechanism for unsatisfactory answers  
+✓ Improved feedback display with specific issues and suggestions
+✓ Better voice feedback with contextual messages
+✓ Smart answer validation based on role-specific criteria
+
 ## System Architecture
 
 ### Frontend Architecture

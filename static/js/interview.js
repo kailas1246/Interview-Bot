@@ -270,13 +270,20 @@ class InterviewBot {
             }
 
             const data = await response.json();
-            this.displayFeedback(data.feedback, data.score);
+            this.displayFeedback(data.feedback, data.score, data.is_satisfactory, data.specific_issues, data.improvement_suggestions);
 
             if (data.interview_complete) {
                 setTimeout(() => {
                     this.showSummary();
                 }, 3000);
+            } else if (data.repeat_question) {
+                // Answer was not satisfactory, repeat question
+                setTimeout(() => {
+                    this.displayRetryMessage(data.retry_message);
+                    this.speakRetryMessage(data.retry_message);
+                }, 3000);
             } else {
+                // Move to next question
                 this.currentQuestionNumber = data.question_number;
                 this.updateProgress();
                 
@@ -293,21 +300,83 @@ class InterviewBot {
         }
     }
 
-    displayFeedback(feedback, score) {
+    displayFeedback(feedback, score, isSatisfactory, issues, suggestions) {
         const scoreClass = score >= 8 ? 'text-success' : score >= 6 ? 'text-warning' : 'text-danger';
+        const satisfactoryClass = isSatisfactory ? 'alert-success' : 'alert-warning';
+        const satisfactoryIcon = isSatisfactory ? 'fa-check-circle' : 'fa-exclamation-triangle';
+        
+        let issuesHTML = '';
+        if (issues && issues.length > 0) {
+            issuesHTML = `
+                <div class="mt-3">
+                    <h6 class="text-danger"><i class="fas fa-times-circle me-2"></i>Issues Found:</h6>
+                    <ul class="mb-0">
+                        ${issues.map(issue => `<li>${issue}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        let suggestionsHTML = '';
+        if (suggestions && suggestions.length > 0) {
+            suggestionsHTML = `
+                <div class="mt-3">
+                    <h6 class="text-info"><i class="fas fa-lightbulb me-2"></i>Suggestions:</h6>
+                    <ul class="mb-0">
+                        ${suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
         
         this.feedbackContent.innerHTML = `
+            <div class="alert ${satisfactoryClass} mb-3">
+                <i class="fas ${satisfactoryIcon} me-2"></i>
+                <strong>${isSatisfactory ? 'Answer Accepted' : 'Answer Needs Improvement'}</strong>
+            </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <strong>Score:</strong>
                 <span class="${scoreClass} fs-5">${score}/10</span>
             </div>
             <p class="mb-0">${feedback}</p>
+            ${issuesHTML}
+            ${suggestionsHTML}
         `;
         
         this.feedbackCard.classList.remove('d-none');
         
         // Speak the feedback
-        const utterance = new SpeechSynthesisUtterance(feedback);
+        const speakText = isSatisfactory ? 
+            `Good answer! Score: ${score} out of 10. ${feedback}` :
+            `Your answer needs improvement. Score: ${score} out of 10. ${feedback}`;
+        
+        const utterance = new SpeechSynthesisUtterance(speakText);
+        utterance.rate = 0.8;
+        this.synthesis.speak(utterance);
+    }
+
+    displayRetryMessage(message) {
+        // Clear previous answer
+        this.answerText.value = '';
+        this.submitAnswerBtn.disabled = true;
+        
+        // Show retry message
+        const retryHTML = `
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-redo me-2"></i>
+                <strong>Please Try Again:</strong> ${message}
+            </div>
+        `;
+        
+        // Add retry message to feedback
+        this.feedbackContent.innerHTML += retryHTML;
+        
+        // Keep the same question displayed
+        // No need to change the question text since it's the same question
+    }
+
+    speakRetryMessage(message) {
+        const utterance = new SpeechSynthesisUtterance(message + " " + this.questionText.textContent);
         utterance.rate = 0.8;
         this.synthesis.speak(utterance);
     }
