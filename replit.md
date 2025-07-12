@@ -15,6 +15,8 @@ Preferred communication style: Simple, everyday language.
 ✓ Improved feedback display with specific issues and suggestions
 ✓ Better voice feedback with contextual messages
 ✓ Smart answer validation based on role-specific criteria
+✓ Randomized question selection from expanded question pools
+✓ Each interview now gets 5 random questions from 15+ available per role
 
 ## System Architecture
 

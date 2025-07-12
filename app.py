@@ -1,6 +1,7 @@
 import os
 import logging
 import uuid
+import random
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
@@ -15,44 +16,111 @@ CORS(app)
 # In-memory storage for interview sessions
 interview_sessions = {}
 
-# Predefined questions for different job roles
+# Expanded question pools for different job roles
 INTERVIEW_QUESTIONS = {
     "software_engineer": [
         "Tell me about yourself and your experience in software development.",
         "What programming languages are you most comfortable with and why?",
         "Describe a challenging technical problem you solved recently.",
         "How do you approach debugging a complex issue?",
-        "What's your experience with version control systems like Git?"
+        "What's your experience with version control systems like Git?",
+        "Explain the difference between SQL and NoSQL databases and when you'd use each.",
+        "How do you ensure code quality in your projects?",
+        "Describe your experience with agile development methodologies.",
+        "What's your approach to testing and test-driven development?",
+        "How do you stay updated with new technologies and programming trends?",
+        "Explain a time when you had to optimize code for better performance.",
+        "What's your experience with cloud platforms like AWS or Azure?",
+        "How do you handle code reviews and collaboration with other developers?",
+        "Describe a project where you had to learn a new technology quickly.",
+        "What's your experience with API design and development?"
     ],
     "data_scientist": [
         "Tell me about your background in data science and analytics.",
         "What machine learning algorithms are you most familiar with?",
         "Describe a data analysis project you've worked on.",
         "How do you handle missing or dirty data in your analysis?",
-        "What tools and programming languages do you use for data science?"
+        "What tools and programming languages do you use for data science?",
+        "Explain the difference between supervised and unsupervised learning.",
+        "How do you validate the accuracy of your machine learning models?",
+        "Describe your experience with data visualization tools.",
+        "What's your approach to feature engineering and selection?",
+        "How do you communicate complex data insights to non-technical stakeholders?",
+        "Explain a time when your model didn't perform as expected and how you fixed it.",
+        "What's your experience with big data technologies like Hadoop or Spark?",
+        "How do you ensure data privacy and ethical considerations in your work?",
+        "Describe a project where you used deep learning techniques.",
+        "What's your approach to A/B testing and experimental design?"
     ],
     "product_manager": [
         "Tell me about your experience in product management.",
         "How do you prioritize features in a product roadmap?",
         "Describe a time when you had to make a difficult product decision.",
         "How do you gather and analyze user feedback?",
-        "What metrics do you use to measure product success?"
+        "What metrics do you use to measure product success?",
+        "Explain how you would launch a new product feature.",
+        "How do you work with engineering teams to deliver products?",
+        "Describe your experience with user research and testing.",
+        "What's your approach to competitive analysis?",
+        "How do you handle stakeholder disagreements about product direction?",
+        "Explain a time when you had to pivot a product strategy.",
+        "What's your experience with product analytics and data-driven decisions?",
+        "How do you balance user needs with business requirements?",
+        "Describe a product failure you learned from.",
+        "What's your approach to market research and validation?"
     ],
     "marketing_manager": [
         "Tell me about your marketing experience and background.",
         "How do you develop and execute marketing campaigns?",
         "Describe a successful marketing campaign you've managed.",
         "How do you measure the effectiveness of marketing efforts?",
-        "What digital marketing channels have you worked with?"
+        "What digital marketing channels have you worked with?",
+        "Explain your approach to content marketing and SEO.",
+        "How do you determine the right marketing budget allocation?",
+        "Describe your experience with social media marketing.",
+        "What's your approach to email marketing and automation?",
+        "How do you identify and target your ideal customer personas?",
+        "Explain a time when a marketing campaign didn't meet expectations.",
+        "What's your experience with marketing analytics and attribution?",
+        "How do you collaborate with sales teams to generate leads?",
+        "Describe your approach to brand management and positioning.",
+        "What's your experience with paid advertising platforms like Google Ads or Facebook?"
     ],
     "sales_representative": [
         "Tell me about your sales experience and approach.",
         "How do you handle objections from potential customers?",
         "Describe your most successful sales achievement.",
         "How do you build and maintain client relationships?",
-        "What CRM tools and sales methodologies are you familiar with?"
+        "What CRM tools and sales methodologies are you familiar with?",
+        "Explain your approach to prospecting and lead generation.",
+        "How do you qualify leads and identify decision-makers?",
+        "Describe a time when you lost a big deal and what you learned.",
+        "What's your process for following up with potential clients?",
+        "How do you handle price objections and negotiations?",
+        "Explain your approach to consultative selling.",
+        "What's your experience with sales forecasting and pipeline management?",
+        "How do you stay motivated during challenging sales periods?",
+        "Describe how you research prospects before making contact.",
+        "What's your approach to closing deals and asking for the sale?"
     ]
 }
+
+# Number of questions to select for each interview
+QUESTIONS_PER_INTERVIEW = 5
+
+def get_random_questions(role):
+    """Get random questions for the specified role"""
+    if role not in INTERVIEW_QUESTIONS:
+        role = "software_engineer"  # Default fallback
+    
+    available_questions = INTERVIEW_QUESTIONS[role]
+    
+    # If we have fewer questions than needed, return all
+    if len(available_questions) <= QUESTIONS_PER_INTERVIEW:
+        return available_questions.copy()
+    
+    # Randomly select questions
+    return random.sample(available_questions, QUESTIONS_PER_INTERVIEW)
 
 # Enhanced evaluation system with detailed feedback
 def evaluate_answer(question, answer, role):
@@ -167,9 +235,11 @@ def start_interview():
             return jsonify({"error": "Invalid role selected"}), 400
         
         session_id = str(uuid.uuid4())
+        random_questions = get_random_questions(role)
+        
         interview_sessions[session_id] = {
             "role": role,
-            "questions": INTERVIEW_QUESTIONS[role].copy(),
+            "questions": random_questions,
             "current_question": 0,
             "answers": [],
             "scores": [],
@@ -180,8 +250,8 @@ def start_interview():
         return jsonify({
             "session_id": session_id,
             "role": role,
-            "first_question": INTERVIEW_QUESTIONS[role][0],
-            "total_questions": len(INTERVIEW_QUESTIONS[role])
+            "first_question": random_questions[0],
+            "total_questions": len(random_questions)
         })
     
     except Exception as e:
