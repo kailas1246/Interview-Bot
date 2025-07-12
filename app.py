@@ -224,6 +224,65 @@ def evaluate_answer(question, answer, role):
 def index():
     return render_template('index.html')
 
+@app.route('/api/skip-question', methods=['POST'])
+def skip_question():
+    """Skip the current question and go to the next one"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+
+        if not session_id or session_id not in interview_sessions:
+            return jsonify({"error": "Invalid session"}), 400
+
+        session = interview_sessions[session_id]
+
+        if session["completed"]:
+            return jsonify({"error": "Interview already completed"}), 400
+
+        # Get current question index
+        current_q_index = session["current_question"]
+
+        # Log the skipped question with empty answer and 0 score
+        skipped_question = session["questions"][current_q_index]
+        session["answers"].append({
+            "question": skipped_question,
+            "answer": "[Skipped]",
+            "score": 0,
+            "feedback": "Question was skipped by the user."
+        })
+        session["scores"].append(0)
+
+        # Move to next question
+        session["current_question"] += 1
+
+        # Check if interview is now complete
+        if session["current_question"] >= len(session["questions"]):
+            session["completed"] = True
+            session["completed_at"] = datetime.now().isoformat()
+
+            avg_score = sum(session["scores"]) / len(session["scores"])
+
+            return jsonify({
+                "interview_complete": True,
+                "final_score": round(avg_score, 1),
+                "total_questions": len(session["questions"])
+            })
+
+        # Else, send next question
+        next_question = session["questions"][session["current_question"]]
+
+        return jsonify({
+            "interview_complete": False,
+            "next_question": next_question,
+            "question_number": session["current_question"] + 1,
+            "total_questions": len(session["questions"])
+        })
+
+    except Exception as e:
+        logging.error(f"Error skipping question: {str(e)}")
+        return jsonify({"error": "Failed to skip question"}), 500
+
+
 @app.route('/api/start-interview', methods=['POST'])
 def start_interview():
     """Start a new interview session"""
