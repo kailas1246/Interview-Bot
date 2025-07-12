@@ -343,6 +343,30 @@ def submit_answer():
         logging.error(f"Error submitting answer: {str(e)}")
         return jsonify({"error": "Failed to submit answer"}), 500
 
+@app.route('/api/cancel-interview', methods=['POST'])
+def cancel_interview():
+    """Cancel an ongoing interview session"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        if not session_id or session_id not in interview_sessions:
+            return jsonify({"error": "Invalid session"}), 400
+        
+        # Mark session as cancelled
+        session = interview_sessions[session_id]
+        session["cancelled"] = True
+        session["cancelled_at"] = datetime.now().isoformat()
+        
+        # Remove from active sessions
+        del interview_sessions[session_id]
+        
+        return jsonify({"message": "Interview cancelled successfully"})
+    
+    except Exception as e:
+        logging.error(f"Error cancelling interview: {str(e)}")
+        return jsonify({"error": "Failed to cancel interview"}), 500
+
 @app.route('/api/get-summary', methods=['POST'])
 def get_summary():
     """Get interview summary and detailed feedback"""

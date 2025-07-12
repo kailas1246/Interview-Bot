@@ -26,6 +26,7 @@ class InterviewBot {
         this.listenBtn = document.getElementById('listenBtn');
         this.listenText = document.getElementById('listenText');
         this.speakQuestionBtn = document.getElementById('speakQuestionBtn');
+        this.exitInterviewBtn = document.getElementById('exitInterviewBtn');
         this.voiceStatus = document.getElementById('voiceStatus');
         this.statusText = document.getElementById('statusText');
         this.answerText = document.getElementById('answerText');
@@ -130,6 +131,10 @@ class InterviewBot {
             this.speakQuestion();
         });
 
+        this.exitInterviewBtn.addEventListener('click', () => {
+            this.exitInterview();
+        });
+
         this.submitAnswerBtn.addEventListener('click', () => {
             this.submitAnswer();
         });
@@ -141,6 +146,13 @@ class InterviewBot {
         // Allow manual text input
         this.answerText.addEventListener('input', () => {
             this.submitAnswerBtn.disabled = !this.answerText.value.trim();
+        });
+
+        // Add keyboard shortcut for exit (Escape key)
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.sessionId && this.interviewInterface.classList.contains('d-none') === false) {
+                this.exitInterview();
+            }
         });
     }
 
@@ -379,6 +391,47 @@ class InterviewBot {
         const utterance = new SpeechSynthesisUtterance(message + " " + this.questionText.textContent);
         utterance.rate = 0.8;
         this.synthesis.speak(utterance);
+    }
+
+    async exitInterview() {
+        // Stop any ongoing speech
+        if (this.synthesis.speaking) {
+            this.synthesis.cancel();
+        }
+        
+        // Stop speech recognition if active
+        if (this.isListening) {
+            this.recognition.stop();
+        }
+
+        // Show confirmation dialog
+        const confirmExit = confirm("Are you sure you want to exit the interview? Your progress will be lost.");
+        
+        if (confirmExit) {
+            // Cancel the interview session on the backend
+            if (this.sessionId) {
+                try {
+                    await fetch('/api/cancel-interview', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ session_id: this.sessionId })
+                    });
+                } catch (error) {
+                    console.log('Error cancelling interview:', error);
+                }
+            }
+            
+            // Speak exit message
+            const exitMessage = "Interview ended. Thank you for practicing with us!";
+            const utterance = new SpeechSynthesisUtterance(exitMessage);
+            utterance.rate = 0.8;
+            this.synthesis.speak(utterance);
+            
+            // Reset to initial state
+            this.restart();
+        }
     }
 
     async showSummary() {

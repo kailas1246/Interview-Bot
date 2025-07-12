@@ -17,6 +17,9 @@ Preferred communication style: Simple, everyday language.
 ✓ Smart answer validation based on role-specific criteria
 ✓ Randomized question selection from expanded question pools
 ✓ Each interview now gets 5 random questions from 15+ available per role
+✓ Added exit interview functionality with confirmation dialog
+✓ Keyboard shortcut (Escape key) for quick interview exit
+✓ Backend session cleanup when interviews are cancelled
 
 ## System Architecture
 
